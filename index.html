@@ -1,0 +1,1175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>PayGeo · Send to a phone, collect as cash</title>
+<style>
+  /* ── Brand palette: the only four colors in this file ───────────────── */
+  :root {
+    --blackberry: #200934;
+    --gold:       #EEBA2B;
+    --cream:      #FFFDF5;
+    --black:      #000000;
+
+    /* Derived tints: brand colors at reduced opacity, never new hues. */
+    --ink:        var(--black);
+    --ink-70:     color-mix(in srgb, var(--black) 70%, transparent);
+    --ink-55:     color-mix(in srgb, var(--black) 55%, transparent);
+    --bb-06:      color-mix(in srgb, var(--blackberry) 6%, transparent);
+    --bb-10:      color-mix(in srgb, var(--blackberry) 10%, transparent);
+    --bb-16:      color-mix(in srgb, var(--blackberry) 16%, transparent);
+    --bb-28:      color-mix(in srgb, var(--blackberry) 28%, transparent);
+    --bb-60:      color-mix(in srgb, var(--blackberry) 60%, transparent);
+    --cream-12:   color-mix(in srgb, var(--cream) 12%, transparent);
+    --cream-20:   color-mix(in srgb, var(--cream) 20%, transparent);
+    --cream-55:   color-mix(in srgb, var(--cream) 55%, transparent);
+    --cream-75:   color-mix(in srgb, var(--cream) 75%, transparent);
+    --black-30:   color-mix(in srgb, var(--black) 30%, transparent);
+    --black-45:   color-mix(in srgb, var(--black) 45%, transparent);
+
+    /* Motion: critically damped, no overshoot. */
+    --ease:       cubic-bezier(.2, .8, .2, 1);
+    --t-fast:     140ms;
+    --t-base:     360ms;
+    --t-slow:     520ms;
+
+    color-scheme: light;
+    font: 100%/1.5 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--cream);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    min-width: 320px;
+  }
+  button {
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  :focus { outline: none; }
+  :focus-visible {
+    outline: 2px solid var(--blackberry);
+    outline-offset: 3px;
+    border-radius: 999px;
+  }
+
+  /* ── Frame ───────────────────────────────────────────────────────────── */
+  .pg {
+    max-width: 1040px;
+    margin: 0 auto;
+    padding: clamp(20px, 4vw, 48px) clamp(16px, 4vw, 40px) clamp(20px, 3vw, 36px);
+  }
+
+  .pg-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px 24px;
+    flex-wrap: wrap;
+  }
+  .pg-copy { max-width: 62ch; min-width: 0; flex: 1 1 280px; }
+  .pg-title {
+    margin: 0;
+    font-size: clamp(1.6rem, 1.05rem + 2.3vw, 2.6rem);
+    line-height: 1.08;
+    letter-spacing: -0.022em;
+    font-weight: 650;
+    color: var(--blackberry);
+    text-wrap: balance;
+  }
+  .pg-sub {
+    margin: 0.75em 0 0;
+    font-size: clamp(0.98rem, 0.9rem + 0.35vw, 1.12rem);
+    line-height: 1.5;
+    color: var(--ink-70);
+    text-wrap: pretty;
+  }
+
+  /* Language toggle */
+  .lang {
+    display: inline-flex;
+    padding: 3px;
+    border-radius: 999px;
+    background: var(--bb-06);
+    flex: 0 0 auto;
+    position: relative;
+  }
+  .lang button {
+    position: relative;
+    z-index: 1;
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--blackberry);
+    transition: color var(--t-base) var(--ease);
+  }
+  .lang button[aria-pressed="true"] { color: var(--cream); }
+  .lang .lang-thumb {
+    position: absolute;
+    inset: 3px auto 3px 3px;
+    width: calc(50% - 3px);
+    border-radius: 999px;
+    background: var(--blackberry);
+    transition: transform var(--t-base) var(--ease);
+  }
+  .lang[data-lang="es"] .lang-thumb { transform: translateX(100%); }
+
+  /* ── Stage ───────────────────────────────────────────────────────────── */
+  .stage {
+    position: relative;
+    margin-top: clamp(28px, 4vw, 48px);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2.15fr);
+    column-gap: clamp(28px, 6vw, 80px);
+    align-items: end;
+    touch-action: pan-y;
+    user-select: none;
+    -webkit-user-select: none;
+    transition: transform var(--t-base) var(--ease);
+    will-change: transform;
+  }
+  .stage.is-dragging { transition: none; }
+  .side { display: flex; justify-content: center; align-items: flex-end; min-width: 0; }
+  .side-r { gap: clamp(20px, 4vw, 44px); justify-content: center; }
+
+  .device {
+    container-type: inline-size;
+    position: relative;
+    min-width: 0;
+    transition: opacity var(--t-slow) var(--ease), transform var(--t-slow) var(--ease), filter var(--t-slow) var(--ease);
+  }
+  .phone { width: min(100%, 196px); flex: 0 1 196px; }
+  .atm   { width: min(100%, 268px); flex: 0 1 268px; }
+  .stage .device:not(.is-active) { opacity: 0.5; }
+
+  /* Narrow: one device at a time, stacked in a single grid cell. */
+  @media (max-width: 759px) {
+    .stage { grid-template-columns: minmax(0, 1fr); }
+    .side { display: contents; }
+    .device {
+      grid-area: 1 / 1;
+      justify-self: center;
+      align-self: center;
+    }
+    .phone { width: min(62%, 216px); }
+    .atm   { width: min(100%, 340px); }
+    .stage .device:not(.is-active) {
+      opacity: 0;
+      visibility: hidden;
+      transform: translateX(var(--exit, 0)) scale(0.98);
+      transition: opacity var(--t-base) var(--ease), transform var(--t-base) var(--ease), visibility 0s var(--t-base);
+    }
+    .stage .device.is-active { transition: opacity var(--t-base) var(--ease), transform var(--t-base) var(--ease), visibility 0s; }
+  }
+
+  /* ── Phone ───────────────────────────────────────────────────────────── */
+  .phone-body {
+    aspect-ratio: 9 / 18.6;
+    border-radius: 15cqw;
+    background: var(--blackberry);
+    padding: 4.2cqw;
+    box-shadow: 0 1.2cqw 3cqw var(--bb-16), 0 10cqw 24cqw -8cqw var(--bb-28);
+    position: relative;
+  }
+  .phone-body::after {               /* side button */
+    content: "";
+    position: absolute;
+    right: -1.2cqw;
+    top: 26%;
+    width: 1.2cqw;
+    height: 11%;
+    border-radius: 0 1cqw 1cqw 0;
+    background: var(--blackberry);
+  }
+  .screen {
+    position: relative;
+    height: 100%;
+    border-radius: 11cqw;
+    background: var(--cream);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    font-size: 5.6cqw;
+    line-height: 1.3;
+    color: var(--blackberry);
+  }
+  .notch {
+    position: absolute;
+    top: 3cqw;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 30cqw;
+    height: 6cqw;
+    border-radius: 999px;
+    background: var(--blackberry);
+  }
+  .statusbar {
+    display: flex;
+    justify-content: space-between;
+    padding: 4cqw 7cqw 0;
+    font-size: 4.6cqw;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }
+  .statusbar .sig {
+    display: inline-flex;
+    gap: 1cqw;
+    align-items: flex-end;
+    height: 4cqw;
+  }
+  .statusbar .sig i {
+    display: block;
+    width: 1.4cqw;
+    background: var(--blackberry);
+    border-radius: 0.5cqw;
+  }
+  .statusbar .sig i:nth-child(1) { height: 40%; }
+  .statusbar .sig i:nth-child(2) { height: 60%; }
+  .statusbar .sig i:nth-child(3) { height: 80%; }
+  .statusbar .sig i:nth-child(4) { height: 100%; }
+
+  /* Sender app */
+  .app {
+    padding: 9cqw 7cqw 8cqw;
+    display: flex;
+    flex-direction: column;
+    gap: 4cqw;
+    flex: 1;
+  }
+  .app-brand {
+    font-size: 4.2cqw;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-55);
+  }
+  .app-title {
+    font-size: 8cqw;
+    font-weight: 650;
+    letter-spacing: -0.015em;
+    line-height: 1.1;
+    margin-bottom: 2cqw;
+  }
+  .field {
+    background: var(--bb-06);
+    border-radius: 4.5cqw;
+    padding: 3.2cqw 4cqw;
+    min-height: 15cqw;
+    transition: box-shadow var(--t-fast) var(--ease);
+  }
+  .field.is-focus { box-shadow: inset 0 0 0 0.6cqw var(--bb-28); }
+  .field-label {
+    display: block;
+    font-size: 3.9cqw;
+    font-weight: 600;
+    color: var(--ink-55);
+    letter-spacing: 0.02em;
+  }
+  .field-value {
+    display: block;
+    font-size: 6cqw;
+    font-weight: 600;
+    min-height: 1.3em;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .field-value.amount { font-size: 9cqw; font-weight: 650; letter-spacing: -0.02em; line-height: 1.15; }
+  .caret {
+    display: inline-block;
+    width: 0.09em;
+    height: 1em;
+    vertical-align: -0.15em;
+    margin-left: 0.04em;
+    background: var(--blackberry);
+    opacity: 0;
+  }
+  .field.is-focus .caret { animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 0%, 55% { opacity: 1; } 56%, 100% { opacity: 0; } }
+
+  .screen-btn {
+    margin-top: auto;
+    border-radius: 999px;
+    background: var(--blackberry);
+    color: var(--cream);
+    font-weight: 650;
+    font-size: 5.6cqw;
+    padding: 4.2cqw 0;
+    text-align: center;
+    transform: scale(1);
+    transition: transform var(--t-fast) var(--ease), opacity var(--t-fast) var(--ease);
+  }
+  .sender.is-pressed .screen-btn { transform: scale(0.95); opacity: 0.85; }
+  .screen-btn .lbl-sent { display: none; }
+  .sender.is-sent .screen-btn .lbl-send { display: none; }
+  .sender.is-sent .screen-btn .lbl-sent { display: inline; }
+  .sender.is-sent .screen-btn { background: var(--gold); color: var(--blackberry); }
+
+  /* Recipient lock screen */
+  .lock {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 14cqw 6cqw 8cqw;
+    position: relative;
+  }
+  .lock-date { font-size: 4.6cqw; font-weight: 600; color: var(--ink-55); }
+  .lock-time {
+    font-size: 20cqw;
+    font-weight: 300;
+    letter-spacing: -0.04em;
+    line-height: 1;
+    margin-top: 1cqw;
+  }
+  .notif {
+    width: 100%;
+    margin-top: 8cqw;
+    border-radius: 6cqw;
+    background: var(--blackberry);
+    color: var(--cream);
+    padding: 4.4cqw 5cqw 5cqw;
+    transform-origin: 50% 0%;
+    opacity: 0;
+    transform: translateY(-6cqw) scale(0.94);
+    transition: opacity var(--t-base) var(--ease), transform var(--t-slow) var(--ease);
+    box-shadow: 0 6cqw 16cqw -6cqw var(--bb-60);
+  }
+  .recipient.is-notified .notif { opacity: 1; transform: none; }
+  .notif-head {
+    display: flex;
+    justify-content: space-between;
+    font-size: 3.9cqw;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--cream-75);
+  }
+  .notif-head .now { text-transform: none; letter-spacing: 0; font-weight: 500; }
+  .notif-title { font-size: 4.8cqw; font-weight: 600; margin-top: 2cqw; }
+  .notif-code {
+    font-size: 11.5cqw;
+    font-weight: 650;
+    letter-spacing: 0.08em;
+    line-height: 1.1;
+    margin-top: 1.5cqw;
+    color: var(--gold);
+    font-variant-numeric: tabular-nums;
+  }
+  .lock-dim {                                      /* screen asleep → lights up */
+    position: absolute;
+    inset: 0;
+    background: var(--blackberry);
+    opacity: 0.86;
+    transition: opacity var(--t-slow) var(--ease);
+    pointer-events: none;
+  }
+  .recipient.is-notified .lock-dim { opacity: 0; }
+
+  /* ── ATM ─────────────────────────────────────────────────────────────── */
+  .atm-body {
+    border-radius: 7cqw 7cqw 5cqw 5cqw;
+    background: var(--blackberry);
+    padding: 6cqw 6cqw 7cqw;
+    box-shadow: 0 1cqw 2.5cqw var(--bb-16), 0 10cqw 26cqw -10cqw var(--bb-28);
+    color: var(--cream);
+    display: flex;
+    flex-direction: column;
+    gap: 5cqw;
+  }
+  .atm-screen {
+    background: var(--cream);
+    color: var(--blackberry);
+    border-radius: 3.5cqw;
+    padding: 5cqw 5cqw 5.5cqw;
+    aspect-ratio: 16 / 10;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    overflow: hidden;
+    position: relative;
+  }
+  .atm-brand {
+    font-size: 3.6cqw;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-55);
+  }
+  .atm-msg {
+    font-size: 5.4cqw;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.25;
+  }
+  .atm-msg .m2 { display: none; }
+  .atm.is-dispensing .atm-msg .m1 { display: none; }
+  .atm.is-dispensing .atm-msg .m2 { display: inline; }
+  .code-cells {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 2cqw;
+    margin-top: 2cqw;
+  }
+  .code-cells span {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 11cqw;
+    border-radius: 2cqw;
+    background: var(--bb-06);
+    box-shadow: inset 0 -0.5cqw 0 var(--bb-16);
+    font-size: 7cqw;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+    transition: background var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
+  }
+  .code-cells span.is-filled { background: var(--bb-10); box-shadow: inset 0 0 0 0.5cqw var(--bb-28); }
+  .atm.is-dispensing .code-cells { opacity: 0.35; }
+
+  .atm-lower {
+    display: grid;
+    grid-template-columns: 1fr 1.05fr;
+    gap: 6cqw;
+    align-items: start;
+  }
+  .keypad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2.2cqw;
+  }
+  .key {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    aspect-ratio: 1.45;
+    border-radius: 2cqw;
+    background: var(--cream-12);
+    color: var(--cream);
+    font-size: 4.4cqw;
+    font-weight: 600;
+    box-shadow: inset 0 -0.6cqw 0 var(--black-30);
+    transition: background var(--t-fast) var(--ease), transform var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+  }
+  .key.is-pressed {
+    background: var(--gold);
+    color: var(--blackberry);
+    transform: translateY(0.4cqw);
+    box-shadow: inset 0 -0.2cqw 0 var(--black-30);
+  }
+  .atm-right { display: flex; flex-direction: column; gap: 4cqw; }
+  .atm-label {
+    font-size: 3.4cqw;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--cream-55);
+  }
+  .speaker {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 1.2cqw;
+    margin-top: 1cqw;
+  }
+  .speaker i { display: block; aspect-ratio: 1; border-radius: 50%; background: var(--black-45); }
+
+  .cash-unit { margin-top: auto; position: relative; }
+  .cash-slot {
+    position: relative;
+    height: 4.2cqw;
+    border-radius: 999px;
+    background: var(--black-45);
+    box-shadow: inset 0 0.6cqw 1cqw var(--black-30);
+    z-index: 2;
+  }
+  .cash-slot::before {
+    content: "";
+    position: absolute;
+    inset: 1.2cqw 1.6cqw;
+    border-radius: 999px;
+    background: var(--cream-20);
+  }
+  .bills {
+    position: absolute;
+    left: 4%;
+    right: 4%;
+    top: 2.1cqw;
+    height: 30cqw;
+    overflow: hidden;
+    clip-path: inset(0 -40% -40% -40%);
+    pointer-events: none;
+  }
+  .bill {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    width: 86%;
+    height: 10cqw;
+    border-radius: 1.2cqw;
+    background: var(--gold);
+    box-shadow: 0 0.6cqw 1.6cqw var(--black-30);
+    transform: translate(-50%, -110%) rotate(0deg);
+    transition: transform var(--t-slow) var(--ease), opacity var(--t-base) var(--ease);
+    opacity: 0;
+  }
+  .bill::before, .bill::after {
+    content: "";
+    position: absolute;
+    border-radius: 999px;
+    border: 0.4cqw solid var(--bb-28);
+  }
+  .bill::before { inset: 1.6cqw 2cqw; border-radius: 0.8cqw; }
+  .bill::after  { width: 4.4cqw; height: 4.4cqw; left: 50%; top: 50%; transform: translate(-50%, -50%); }
+  .atm.is-dispensing .bill { opacity: 1; }
+  .atm.is-dispensing .bill:nth-child(1) { transform: translate(-50%, 10%)  rotate(-3deg); transition-delay: 0ms; }
+  .atm.is-dispensing .bill:nth-child(2) { transform: translate(-48%, 78%)  rotate(2deg);  transition-delay: 110ms; }
+  .atm.is-dispensing .bill:nth-child(3) { transform: translate(-51%, 146%) rotate(-1deg); transition-delay: 220ms; }
+  .atm-foot {
+    height: 7cqw;
+    margin: 0 8%;
+    border-radius: 0 0 4cqw 4cqw;
+    background: var(--bb-60);
+  }
+  .atm-wrap { padding-bottom: 0; }
+
+  /* ── Caption + controls ─────────────────────────────────────────────── */
+  .caption-wrap {
+    margin-top: clamp(28px, 4vw, 40px);
+    text-align: center;
+  }
+  .step-eyebrow {
+    display: inline-flex;
+    gap: 0.5em;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-55);
+    font-variant-numeric: tabular-nums;
+  }
+  .caption {
+    margin: 0.3em auto 0;
+    font-size: clamp(1.05rem, 0.95rem + 0.6vw, 1.35rem);
+    line-height: 1.35;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--blackberry);
+    max-width: 34ch;
+    min-height: 2.7em;
+    text-wrap: balance;
+  }
+  .caption-wrap .swap { transition: opacity var(--t-base) var(--ease), transform var(--t-base) var(--ease); }
+  .caption-wrap.is-swapping .swap { opacity: 0; transform: translateY(4px); transition: none; }
+
+  .controls {
+    margin-top: clamp(16px, 2.5vw, 24px);
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 12px;
+  }
+  .nav {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 18px;
+    border-radius: 999px;
+    font-size: 0.93rem;
+    font-weight: 600;
+    letter-spacing: 0.005em;
+    background: var(--bb-06);
+    color: var(--blackberry);
+    transition: transform 100ms ease-out, background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+  }
+  .nav:hover { background: var(--bb-10); }
+  .nav:active { transform: scale(0.97); }
+  .nav.next { background: var(--blackberry); color: var(--cream); }
+  .nav.next:hover { background: color-mix(in srgb, var(--blackberry) 88%, var(--cream)); }
+  .nav svg { width: 1em; height: 1em; display: block; }
+  .nav.prev { justify-self: start; }
+  .nav.next { justify-self: end; }
+
+  .dots {
+    display: inline-flex;
+    gap: 8px;
+    padding: 6px;
+    border-radius: 999px;
+  }
+  .dot {
+    position: relative;
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: var(--bb-28);
+    overflow: hidden;
+    transition: width var(--t-base) var(--ease), background var(--t-base) var(--ease);
+  }
+  .dot::before {                     /* bigger hit target without changing the look */
+    content: "";
+    position: absolute;
+    inset: -8px;
+  }
+  .dot:hover { background: var(--bb-60); }
+  .dot[aria-current="step"] { width: 36px; background: var(--bb-16); }
+  .dot .fill {
+    position: absolute;
+    inset: 0;
+    background: var(--blackberry);
+    transform-origin: 0 50%;
+    transform: scaleX(0);
+  }
+  .dot[aria-current="step"] .fill { transform: scaleX(var(--p, 0)); }
+  .dot[aria-current="step"].no-progress .fill { transform: scaleX(1); }
+  .dot:focus-visible { outline-offset: 4px; }
+
+  /* ── Footnotes ──────────────────────────────────────────────────────── */
+  .notes {
+    margin-top: clamp(28px, 4vw, 44px);
+    padding-top: 16px;
+    border-top: 1px solid var(--bb-10);
+    text-align: center;
+  }
+  .notes p { margin: 0; }
+  .patents {
+    font-size: 0.8rem;
+    line-height: 1.5;
+    color: var(--ink-55);
+    letter-spacing: 0.005em;
+    text-wrap: balance;
+    max-width: 72ch;
+    margin-inline: auto;
+  }
+  .footer {
+    margin-top: 6px !important;
+    font-size: 0.72rem;
+    color: var(--ink-55);
+    letter-spacing: 0.02em;
+  }
+
+  /* ── Reduced motion: cross-fades only, no autoplay ─────────────────── */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      transition-duration: 180ms !important;
+      transition-delay: 0ms !important;
+      animation: none !important;
+    }
+    .stage { transition: none; }
+    .stage .device:not(.is-active) { transform: none; }
+    .notif, .recipient.is-notified .notif,
+    .bill, .atm.is-dispensing .bill,
+    .screen-btn, .key, .dot, .lang .lang-thumb { transition-property: opacity, background, color; }
+    .notif { transform: none; }
+    .atm.is-dispensing .bill:nth-child(1) { transform: translate(-50%, 10%)  rotate(-3deg); }
+    .atm.is-dispensing .bill:nth-child(2) { transform: translate(-48%, 78%)  rotate(2deg); }
+    .atm.is-dispensing .bill:nth-child(3) { transform: translate(-51%, 146%) rotate(-1deg); }
+    .caret { opacity: 0 !important; }
+  }
+  @media (prefers-contrast: more) {
+    .field, .nav, .dots { outline: 1px solid var(--bb-60); }
+    .pg-sub, .patents, .footer, .field-label, .app-brand, .atm-brand { color: var(--ink); }
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+  #check-out { display: none; }
+</style>
+</head>
+<body>
+<section class="pg" id="pg" aria-labelledby="pg-title">
+  <header class="pg-head">
+    <div class="pg-copy">
+      <h2 class="pg-title" id="pg-title" data-t="headline"></h2>
+      <p class="pg-sub" data-t="subhead"></p>
+    </div>
+    <div class="lang" id="lang" role="group" data-lang="en">
+      <span class="lang-thumb" aria-hidden="true"></span>
+      <button type="button" data-lang="en" aria-pressed="true" lang="en">EN</button>
+      <button type="button" data-lang="es" aria-pressed="false" lang="es">ES</button>
+    </div>
+  </header>
+
+  <div class="stage" id="stage" aria-hidden="true">
+    <!-- Sender -->
+    <div class="side side-l">
+      <div class="device phone sender" id="sender">
+        <div class="phone-body">
+          <div class="screen">
+            <div class="notch"></div>
+            <div class="statusbar"><span>9:41</span><span class="sig"><i></i><i></i><i></i><i></i></span></div>
+            <div class="app">
+              <div class="app-brand">PayGeo</div>
+              <div class="app-title" data-t="sendTitle"></div>
+              <div class="field" id="f-phone">
+                <span class="field-label" data-t="sendTo"></span>
+                <span class="field-value"><span id="v-phone"></span><span class="caret"></span></span>
+              </div>
+              <div class="field" id="f-amount">
+                <span class="field-label" data-t="amount"></span>
+                <span class="field-value amount"><span id="v-amount"></span><span class="caret"></span></span>
+              </div>
+              <div class="screen-btn"><span class="lbl-send" data-t="send"></span><span class="lbl-sent">✓ <span data-t="sent"></span></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="side side-r">
+      <!-- Recipient -->
+      <div class="device phone recipient" id="recipient">
+        <div class="phone-body">
+          <div class="screen">
+            <div class="notch"></div>
+            <div class="statusbar"><span>9:41</span><span class="sig"><i></i><i></i><i></i><i></i></span></div>
+            <div class="lock">
+              <div class="lock-date" data-t="lockDate"></div>
+              <div class="lock-time">9:41</div>
+              <div class="notif">
+                <div class="notif-head"><span>PayGeo</span><span class="now" data-t="now"></span></div>
+                <div class="notif-title" data-t="codeTitle"></div>
+                <div class="notif-code" id="notif-code"></div>
+              </div>
+              <div class="lock-dim"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ATM -->
+      <div class="device atm atm-wrap" id="atm">
+        <div class="atm-body">
+          <div class="atm-screen">
+            <div class="atm-brand" data-t="atmBrand"></div>
+            <div class="atm-msg"><span class="m1" data-t="enterCode"></span><span class="m2" data-t="takeCash"></span></div>
+            <div class="code-cells" id="code-cells">
+              <span></span><span></span><span></span><span></span><span></span><span></span>
+            </div>
+          </div>
+          <div class="atm-lower">
+            <div class="keypad" id="keypad">
+              <span class="key">1</span><span class="key">2</span><span class="key">3</span>
+              <span class="key">4</span><span class="key">5</span><span class="key">6</span>
+              <span class="key">7</span><span class="key">8</span><span class="key">9</span>
+              <span class="key">*</span><span class="key">0</span><span class="key">#</span>
+            </div>
+            <div class="atm-right">
+              <div>
+                <div class="atm-label" data-t="atmSpeaker"></div>
+                <div class="speaker"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+              </div>
+              <div class="cash-unit">
+                <div class="atm-label" data-t="atmCash"></div>
+                <div class="cash-slot" style="margin-top:1.4cqw"></div>
+                <div class="bills" data-clip-ok><i class="bill"></i><i class="bill"></i><i class="bill"></i></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="atm-foot"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="caption-wrap" id="caption-wrap">
+    <div class="step-eyebrow swap" aria-hidden="true"><span id="step-num"></span><span>·</span><span id="step-label"></span></div>
+    <p class="caption swap" id="caption" aria-live="polite" aria-atomic="true"></p>
+  </div>
+
+  <div class="controls">
+    <button type="button" class="nav prev" id="prev">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10.5 3 5.5 8l5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span data-t="back"></span>
+    </button>
+    <div class="dots" id="dots" role="group"></div>
+    <button type="button" class="nav next" id="next">
+      <span data-t="next"></span>
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m5.5 3 5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+  </div>
+
+  <div class="notes">
+    <p class="patents" data-t="patents"></p>
+    <p class="footer" data-t="footer"></p>
+  </div>
+  <pre id="check-out"></pre>
+</section>
+
+<script>
+(() => {
+  'use strict';
+
+  /* ══════════════════════════════════════════════════════════════════════
+     COPY — edit text here. Nothing below this block contains user-facing
+     words, except the fictional phone number and demo code.
+     ══════════════════════════════════════════════════════════════════════ */
+  const COPY = {
+    en: {
+      headline: 'Send money to a phone number. Collect it as cash.',
+      subhead: 'PayGeo’s patented transfer system is designed to move money from one phone to another and pay it out at an ATM with a code.',
+      steps: [
+        { label: 'Send', caption: 'Enter a phone number and an amount.' },
+        { label: 'Code', caption: 'The recipient gets a one-time code on their phone.' },
+        { label: 'ATM',  caption: 'They enter the code at an ATM. No card.' },
+        { label: 'Cash', caption: 'Cash comes out.' }
+      ],
+      patents: 'Based on PayGeo’s patented money-transfer system. U.S. Patent Nos. 10,733,593; 10,796,296; 10,937,018; 11,087,307; 12,014,347; 12,462,240.',
+      footer: 'Illustrative demo. Product not yet available.',
+      ui: {
+        back: 'Back',
+        next: 'Next',
+        goToStep: 'Go to step {n}: {label}',
+        stepOf: 'Step {n} of {total}',
+        languageGroup: 'Language',
+        switchTo: 'Switch to {lang}',
+        langName: { en: 'English', es: 'Spanish' },
+        stepsGroup: 'Steps',
+        demo: 'Demo of the transfer flow'
+      },
+      screen: {
+        sendTitle: 'Send money',
+        sendTo: 'Send to',
+        amount: 'Amount',
+        send: 'Send',
+        sent: 'Sent',
+        lockDate: 'Tuesday, May 6',
+        now: 'now',
+        codeTitle: 'Your one-time code',
+        atmBrand: 'ATM',
+        enterCode: 'Enter your code',
+        takeCash: 'Please take your cash',
+        atmSpeaker: 'Audio',
+        atmCash: 'Cash'
+      }
+    },
+    es: {
+      headline: 'Envía dinero a un número de teléfono. Retíralo en efectivo.',
+      subhead: 'El sistema de transferencias patentado de PayGeo está diseñado para mover dinero de un teléfono a otro y entregarlo en un cajero automático con un código.',
+      steps: [
+        { label: 'Enviar',   caption: 'Ingresa un número de teléfono y un monto.' },
+        { label: 'Código',   caption: 'El destinatario recibe un código de un solo uso en su teléfono.' },
+        { label: 'Cajero',   caption: 'Ingresa el código en un cajero automático. Sin tarjeta.' },
+        { label: 'Efectivo', caption: 'Sale el efectivo.' }
+      ],
+      patents: 'Basado en el sistema patentado de transferencia de dinero de PayGeo. Patentes de EE. UU. n.º 10,733,593; 10,796,296; 10,937,018; 11,087,307; 12,014,347; 12,462,240.',
+      footer: 'Demostración ilustrativa. Producto aún no disponible.',
+      ui: {
+        back: 'Atrás',
+        next: 'Siguiente',
+        goToStep: 'Ir al paso {n}: {label}',
+        stepOf: 'Paso {n} de {total}',
+        languageGroup: 'Idioma',
+        switchTo: 'Cambiar a {lang}',
+        langName: { en: 'inglés', es: 'español' },
+        stepsGroup: 'Pasos',
+        demo: 'Demostración del flujo de transferencia'
+      },
+      screen: {
+        sendTitle: 'Enviar dinero',
+        sendTo: 'Enviar a',
+        amount: 'Monto',
+        send: 'Enviar',
+        sent: 'Enviado',
+        lockDate: 'martes, 6 de mayo',
+        now: 'ahora',
+        codeTitle: 'Tu código de un solo uso',
+        atmBrand: 'Cajero',
+        enterCode: 'Ingresa tu código',
+        takeCash: 'Retira tu efectivo',
+        atmSpeaker: 'Audio',
+        atmCash: 'Efectivo'
+      }
+    }
+  };
+  const DEMO = { phone: '(555) 010-0142', amount: '$200', code: '482917' };
+
+  /* ── Timing (ms) ─────────────────────────────────────────────────────── */
+  const STEP_MS = 4000;      // autoplay dwell per step
+  const IDLE_MS = 8000;      // resume after this much idle
+  const TOTAL = 4;
+
+  /* ── DOM ─────────────────────────────────────────────────────────────── */
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+  const pg = $('#pg'), stage = $('#stage'), captionWrap = $('#caption-wrap');
+  const sender = $('#sender'), recipient = $('#recipient'), atm = $('#atm');
+  const vPhone = $('#v-phone'), vAmount = $('#v-amount');
+  const fPhone = $('#f-phone'), fAmount = $('#f-amount');
+  const codeCells = $$('#code-cells span'), keys = $$('#keypad .key');
+  const notifCode = $('#notif-code');
+  const captionEl = $('#caption'), stepNum = $('#step-num'), stepLabel = $('#step-label');
+  const prevBtn = $('#prev'), nextBtn = $('#next'), dotsEl = $('#dots'), langEl = $('#lang');
+  const devices = [sender, recipient, atm, atm];   // active device per step
+
+  const params = new URLSearchParams(location.search);
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const noAutoplay = reduceMotion || params.has('pause');
+
+  /* ── State ───────────────────────────────────────────────────────────── */
+  let lang = params.get('lang') === 'es' ? 'es' : 'en';
+  let step = Math.min(TOTAL - 1, Math.max(0, (parseInt(params.get('step'), 10) || 1) - 1));
+  let sceneStart = performance.now();  // scene clock: always runs
+  let elapsed = 0;                     // autoplay clock: runs only while playing
+  let lastTick = performance.now();
+  let hovered = false, focused = false, lastInteract = -Infinity;
+  let dir = 1;
+
+  /* ── Copy ────────────────────────────────────────────────────────────── */
+  const fmt = (s, map) => s.replace(/\{(\w+)\}/g, (_, k) => map[k]);
+
+  function applyCopy() {
+    const c = COPY[lang];
+    document.documentElement.lang = lang;
+    langEl.dataset.lang = lang;
+    langEl.setAttribute('aria-label', c.ui.languageGroup);
+    $$('button', langEl).forEach(b => {
+      const l = b.dataset.lang;
+      b.setAttribute('aria-pressed', String(l === lang));
+      b.setAttribute('aria-label', fmt(c.ui.switchTo, { lang: c.ui.langName[l] }));
+    });
+    $$('[data-t]').forEach(el => {
+      const k = el.dataset.t;
+      el.textContent = c[k] !== undefined ? c[k] : c.ui[k] !== undefined ? c.ui[k] : c.screen[k];
+    });
+    prevBtn.setAttribute('aria-label', c.ui.back);
+    nextBtn.setAttribute('aria-label', c.ui.next);
+    dotsEl.setAttribute('aria-label', c.ui.stepsGroup);
+    stage.setAttribute('aria-label', c.ui.demo);
+    $$('.dot', dotsEl).forEach((d, i) => d.setAttribute('aria-label', fmt(c.ui.goToStep, { n: i + 1, label: c.steps[i].label })));
+    notifCode.textContent = DEMO.code.slice(0, 3) + ' ' + DEMO.code.slice(3);
+    renderCaption(false);
+  }
+
+  function renderCaption(animate) {
+    const c = COPY[lang];
+    const swap = () => {
+      stepNum.textContent = fmt(c.ui.stepOf, { n: step + 1, total: TOTAL });
+      stepLabel.textContent = c.steps[step].label;
+      captionEl.textContent = c.steps[step].caption;
+    };
+    if (!animate) { swap(); return; }
+    captionWrap.classList.add('is-swapping');
+    swap();
+    const unswap = () => captionWrap.classList.remove('is-swapping');
+    requestAnimationFrame(() => requestAnimationFrame(unswap));
+    setTimeout(unswap, 40);
+  }
+
+  /* ── Dots ────────────────────────────────────────────────────────────── */
+  for (let i = 0; i < TOTAL; i++) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'dot';
+    b.innerHTML = '<span class="fill"></span>';
+    b.addEventListener('click', () => { interact(); goTo(i); });
+    dotsEl.appendChild(b);
+  }
+  const dots = $$('.dot', dotsEl);
+
+  /* ── Scene rendering — pure function of (step, t) ─────────────────────
+     Each step's choreography is described by time offsets; rendering is
+     idempotent, so it stays correct when frames are skipped or paused. */
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+  function renderScene(t) {
+    // Sender
+    const nP = step === 0 ? clamp(Math.floor((t - 350) / 75), 0, DEMO.phone.length) : (step > 0 ? DEMO.phone.length : 0);
+    const nA = step === 0 ? clamp(Math.floor((t - 1700) / 150), 0, DEMO.amount.length) : (step > 0 ? DEMO.amount.length : 0);
+    setText(vPhone, DEMO.phone.slice(0, nP));
+    setText(vAmount, DEMO.amount.slice(0, nA));
+    fPhone.classList.toggle('is-focus', step === 0 && t >= 250 && nP < DEMO.phone.length);
+    fAmount.classList.toggle('is-focus', step === 0 && nP >= DEMO.phone.length && t < 2700);
+    sender.classList.toggle('is-pressed', step === 0 && t >= 2800 && t < 3000);
+    sender.classList.toggle('is-sent', step > 0 || t >= 3000);
+
+    // Recipient
+    recipient.classList.toggle('is-notified', step > 1 || (step === 1 && t >= 450));
+
+    // ATM
+    const nC = step === 2 ? clamp(Math.floor((t - 500) / 320), 0, 6) : (step > 2 ? 6 : 0);
+    codeCells.forEach((cell, i) => {
+      const filled = i < nC;
+      cell.classList.toggle('is-filled', filled);
+      setText(cell, filled ? DEMO.code[i] : '');
+    });
+    let pressedKey = -1;
+    if (step === 2 && nC < 6 && t >= 500 && ((t - 500) % 320) < 170) pressedKey = keyIndex(DEMO.code[nC]);
+    keys.forEach((k, i) => k.classList.toggle('is-pressed', i === pressedKey));
+    atm.classList.toggle('is-dispensing', step === 3 && t >= 250);
+  }
+  function keyIndex(ch) { return ch === '0' ? 10 : (parseInt(ch, 10) - 1); }
+  function setText(el, s) { if (el.textContent !== s) el.textContent = s; }
+
+  /* ── Steps ───────────────────────────────────────────────────────────── */
+  function goTo(n, d) {
+    n = ((n % TOTAL) + TOTAL) % TOTAL;
+    dir = d !== undefined ? d : (n > step || (step === TOTAL - 1 && n === 0) ? 1 : -1);
+    if (n === step && d === undefined) { restartClock(); return; }
+    step = n;
+    restartClock();
+    devices.forEach((dv, i) => dv.classList.toggle('is-active', devices[step] === dv));
+    stage.style.setProperty('--exit', (dir > 0 ? -14 : 14) + 'px');
+    dots.forEach((d, i) => {
+      if (i === step) d.setAttribute('aria-current', 'step'); else d.removeAttribute('aria-current');
+    });
+    renderCaption(!reduceMotion);
+    renderScene(noAutoplay ? 1e9 : 0);
+  }
+  function restartClock() {
+    sceneStart = performance.now();
+    elapsed = 0;
+    dots.forEach(d => d.style.setProperty('--p', 0));
+  }
+  const next = () => goTo(step + 1, 1);
+  const prev = () => goTo(step - 1, -1);
+
+  /* ── Autoplay ────────────────────────────────────────────────────────── */
+  function isPaused(now) {
+    return noAutoplay || document.hidden || hovered || focused || (now - lastInteract) < IDLE_MS;
+  }
+  function interact() { lastInteract = performance.now(); }
+
+  function tick(now) {
+    const dt = Math.min(100, now - lastTick);
+    lastTick = now;
+    const paused = isPaused(now);
+    if (!paused) elapsed += dt;
+    const sceneT = now - sceneStart;
+    renderScene(sceneT);
+    const active = dots[step];
+    active.classList.toggle('no-progress', noAutoplay);
+    active.style.setProperty('--p', clamp(elapsed / STEP_MS, 0, 1).toFixed(4));
+    if (!paused && elapsed >= STEP_MS) next();
+    requestAnimationFrame(tick);
+  }
+
+  /* ── Controls ────────────────────────────────────────────────────────── */
+  prevBtn.addEventListener('click', () => { interact(); prev(); });
+  nextBtn.addEventListener('click', () => { interact(); next(); });
+  // Respond on press, not release: pointerdown marks the interaction.
+  pg.addEventListener('pointerdown', interact, { passive: true });
+  pg.addEventListener('pointerenter', () => { hovered = true; });
+  pg.addEventListener('pointerleave', () => { hovered = false; interact(); });
+  pg.addEventListener('focusin', () => { focused = true; });
+  pg.addEventListener('focusout', (e) => { if (!pg.contains(e.relatedTarget)) { focused = false; interact(); } });
+  document.addEventListener('visibilitychange', () => { lastTick = performance.now(); });
+
+  $$('button', langEl).forEach(b => b.addEventListener('click', () => {
+    interact();
+    if (b.dataset.lang !== lang) { lang = b.dataset.lang; applyCopy(); }
+  }));
+
+  document.addEventListener('keydown', (e) => {
+    const tgt = e.target;
+    if (tgt && (tgt.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(tgt.tagName))) return;
+    if (e.key === 'ArrowRight') { e.preventDefault(); interact(); next(); }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); interact(); prev(); }
+  });
+
+  /* ── Swipe: 1:1 tracking with rubber-banding, decide on velocity ───── */
+  (() => {
+    let id = null, x0 = 0, y0 = 0, dragging = false, hist = [];
+    const W = () => stage.getBoundingClientRect().width || 1;
+    const rubber = (d, dim, c = 0.55) => (d * dim * c) / (dim + c * Math.abs(d));
+
+    stage.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      id = e.pointerId; x0 = e.clientX; y0 = e.clientY; dragging = false;
+      hist = [{ x: e.clientX, t: e.timeStamp }];
+    });
+    stage.addEventListener('pointermove', (e) => {
+      if (e.pointerId !== id) return;
+      const dx = e.clientX - x0, dy = e.clientY - y0;
+      hist.push({ x: e.clientX, t: e.timeStamp }); if (hist.length > 6) hist.shift();
+      if (!dragging) {
+        if (Math.abs(dx) < 10 || Math.abs(dx) < Math.abs(dy)) return;   // hysteresis + direction lock
+        dragging = true;
+        try { stage.setPointerCapture(id); } catch (_) {}
+        stage.classList.add('is-dragging');
+        interact();
+      }
+      if (!reduceMotion) stage.style.transform = 'translateX(' + rubber(dx, W() * 0.35).toFixed(1) + 'px)';
+    });
+    const end = (e) => {
+      if (e.pointerId !== id) return;
+      id = null;
+      if (!dragging) return;
+      dragging = false;
+      stage.classList.remove('is-dragging');
+      stage.style.transform = '';
+      const a = hist[0], b = hist[hist.length - 1];
+      const v = b.t > a.t ? (b.x - a.x) / ((b.t - a.t) / 1000) : 0;   // px/s
+      const dx = e.clientX - x0;
+      if (Math.abs(v) > 350) { v < 0 ? next() : prev(); }
+      else if (Math.abs(dx) > 48) { dx < 0 ? next() : prev(); }
+      interact();
+    };
+    stage.addEventListener('pointerup', end);
+    stage.addEventListener('pointercancel', end);
+  })();
+
+  /* ── Boot ────────────────────────────────────────────────────────────── */
+  applyCopy();
+  goTo(step, 1);
+  if (!noAutoplay) requestAnimationFrame(tick);
+  else { renderScene(1e9); dots[step].classList.add('no-progress'); }
+
+  /* ── Self-check (only with ?check=1): overflow + clipping report ─────── */
+  if (params.has('check')) {
+    const out = [];
+    const report = (m) => { out.push(m); console.log('CHECK ' + m); };
+    const run = () => {
+      ['en', 'es'].forEach(l => {
+        lang = l; applyCopy();
+        for (let s = 0; s < TOTAL; s++) {
+          goTo(s, 1); renderScene(1e9);
+          const de = document.documentElement;
+          if (de.scrollWidth > window.innerWidth + 1) report(`FAIL ${l} step${s + 1}: page scrollWidth ${de.scrollWidth} > ${window.innerWidth}`);
+          $$('*', pg).forEach(el => {
+            if (el.closest('.sr-only') || el.id === 'check-out') return;
+            const cs = getComputedStyle(el);
+            if (cs.visibility === 'hidden' || cs.display === 'none' || parseFloat(cs.opacity) === 0) return;
+            const r = el.getBoundingClientRect();
+            if (r.width === 0 && r.height === 0) return;
+            if (r.right > window.innerWidth + 1 || r.left < -1) report(`FAIL ${l} step${s + 1}: ${desc(el)} exceeds viewport (${r.left.toFixed(0)}..${r.right.toFixed(0)})`);
+            // text clipped inside its own box
+            if (/(hidden|clip)/.test(cs.overflow) && !el.hasAttribute('data-clip-ok') && !el.classList.contains('dot')) {
+              if (el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1) report(`FAIL ${l} step${s + 1}: ${desc(el)} content clipped (${el.scrollWidth}x${el.scrollHeight} in ${el.clientWidth}x${el.clientHeight})`);
+            }
+            // text nodes wider than their block (nowrap overflow)
+            if (cs.whiteSpace === 'nowrap' && el.scrollWidth > el.clientWidth + 1) report(`FAIL ${l} step${s + 1}: ${desc(el)} nowrap text overflows`);
+          });
+        }
+      });
+      if (!out.length) report('OK no overflow or clipping at ' + window.innerWidth + 'px');
+      $('#check-out').textContent = out.join('\n');
+      $('#check-out').style.display = 'block';
+      document.title = 'CHECK ' + (out.some(l => l.startsWith('FAIL')) ? 'FAIL' : 'OK') + ' ' + window.innerWidth;
+    };
+    const desc = (el) => el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + (el.className && typeof el.className === 'string' ? '.' + el.className.trim().split(/\s+/).join('.') : '');
+    setTimeout(run, 50);
+  }
+})();
+</script>
+</body>
+</html>
