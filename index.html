@@ -138,22 +138,22 @@
     transition: transform var(--t-base) var(--ease);
   }
   .stage.is-dragging { transition: none; }
+  .stage { perspective: 1600px; }
   .device {
     container-type: inline-size;
     grid-area: 1 / 1;
     justify-self: center;
     align-self: center;
     min-width: 0;
-    transition: opacity var(--t-slow) var(--ease), transform var(--t-slow) var(--ease), visibility 0s;
+    transform-origin: 50% 50%;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    will-change: transform, opacity;
   }
   .phone { width: min(64%, 236px); }
   .atm   { width: min(100%, 300px); }
-  .device:not(.is-active) {
-    opacity: 0;
-    visibility: hidden;
-    transform: translateX(var(--exit, 0)) scale(0.985);
-    transition: opacity var(--t-base) var(--ease), transform var(--t-base) var(--ease), visibility 0s var(--t-base);
-  }
+  .device:not(.is-active):not(.is-leaving) { opacity: 0; visibility: hidden; }
+  .device.is-leaving { z-index: 1; pointer-events: none; }
 
   /* ── Phone ───────────────────────────────────────────────────────────── */
   .phone-body {
@@ -471,11 +471,39 @@
   .bill::before, .bill::after {
     content: "";
     position: absolute;
-    border-radius: 999px;
     border: 0.4cqw solid var(--bb-28);
   }
-  .bill::before { inset: 1.6cqw 2cqw; border-radius: 0.8cqw; }
-  .bill::after  { width: 4.4cqw; height: 4.4cqw; left: 50%; top: 50%; transform: translate(-50%, -50%); }
+  .bill::before { inset: 1.3cqw 1.6cqw; border-radius: 0.7cqw; }           /* engraved frame */
+  .bill::after  {                                                           /* portrait oval */
+    width: 5.6cqw; height: 7cqw; left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: var(--bb-10);
+  }
+  .bill b {                                                                 /* corner $ marks */
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    font-style: normal;
+    font-weight: 700;
+    font-size: 4.2cqw;
+    line-height: 1;
+    color: var(--blackberry);
+  }
+  .bill b:first-child { left: 5cqw; }
+  .bill b:nth-child(2) { right: 5cqw; }
+  .bill small {                                                             /* USD mark */
+    position: absolute;
+    left: 50%;
+    bottom: 1.5cqw;
+    transform: translateX(-50%);
+    font-size: 1.9cqw;
+    font-weight: 800;
+    letter-spacing: 0.22em;
+    line-height: 1;
+    color: var(--blackberry);
+    opacity: 0.7;
+  }
   .atm.is-dispensing .bill { opacity: 1; }
   .atm.is-dispensing .bill:nth-child(1) { transform: translate(-50%, 12%)  rotate(-2deg); transition-delay: 0ms; }
   .atm.is-dispensing .bill:nth-child(2) { transform: translate(-49%, 80%)  rotate(1.5deg); transition-delay: 110ms; }
@@ -544,7 +572,6 @@
       animation: none !important;
     }
     .stage { transition: none; }
-    .device:not(.is-active) { transform: none; }
     .notif, .recipient.is-notified .notif,
     .bill, .atm.is-dispensing .bill,
     .screen-btn, .key, .dot, .lang-thumb { transition-property: opacity, background, color; }
@@ -646,7 +673,7 @@
         </div>
         <div class="cash-unit">
           <div class="cash-slot"></div>
-          <div class="bills" data-clip-ok><i class="bill"></i><i class="bill"></i><i class="bill"></i></div>
+          <div class="bills" data-clip-ok><i class="bill"><b>$</b><b>$</b><small>USD</small></i><i class="bill"><b>$</b><b>$</b><small>USD</small></i><i class="bill"><b>$</b><b>$</b><small>USD</small></i></div>
         </div>
       </div>
     </div>
@@ -739,7 +766,7 @@
   const DEMO = { phone: '(555) 010-0142', amount: '$200', code: '482917' };
 
   /* ── Timing (ms) ─────────────────────────────────────────────────────── */
-  const STEP_MS = [4400, 3600, 6400];   // dwell per step; the ATM step types the code, then dispenses
+  const STEP_MS = [4400, 2100, 6400];   // dwell per step; the ATM step types the code, then dispenses
   const IDLE_MS = 8000;                 // resume after this much idle following an interaction
   const TOTAL = STEP_MS.length;
 
@@ -844,11 +871,12 @@
   function goTo(n, d) {
     n = ((n % TOTAL) + TOTAL) % TOTAL;
     const dir = d !== undefined ? d : (n > step || (step === TOTAL - 1 && n === 0) ? 1 : -1);
+    const from = devices[step], to = devices[n];
     step = n;
     sceneStart = performance.now();
     elapsed = 0;
-    stage.style.setProperty('--exit', (dir > 0 ? -16 : 16) + 'px');
     devices.forEach((dv, i) => dv.classList.toggle('is-active', i === step));
+    if (from !== to) morph(from, to, dir);
     dots.forEach((dot, i) => {
       dot.style.setProperty('--p', 0);
       if (i === step) dot.setAttribute('aria-current', 'step'); else dot.removeAttribute('aria-current');
@@ -856,6 +884,66 @@
     renderCaption();
     renderScene(noAutoplay ? 1e9 : 0);
   }
+  /* Transitions between devices. Phone -> phone flips over like handing the
+     phone across; phone <-> ATM stretches one body into the other (FLIP: the
+     leaving device scales to the arriving device's box while the arriving one
+     starts from the leaving box), with a cross-fade at the midpoint. */
+  let running = [];
+  const innerOf = (dv) => dv.classList.contains('atm') ? $$('.atm-body > *', dv) : [$('.screen', dv)];
+  function morph(from, to, dir) {
+    running.forEach(a => a.cancel()); running = [];
+    $$('.is-leaving', stage).forEach(el => el.classList.remove('is-leaving'));
+    from.classList.add('is-leaving');
+    const anims = [];
+    const ease = 'cubic-bezier(.2,.8,.2,1)';
+    if (reduceMotion) {
+      anims.push(from.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 180, fill: 'forwards' }));
+      anims.push(to.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 180, fill: 'forwards' }));
+    } else if (from.classList.contains('phone') && to.classList.contains('phone')) {
+      // Hand the phone across: flip out, flip in.
+      const sgn = dir > 0 ? -1 : 1;
+      anims.push(from.animate(
+        [{ transform: 'rotateY(0deg)' }, { transform: 'rotateY(' + (sgn * 90) + 'deg)' }],
+        { duration: 300, easing: 'cubic-bezier(.4,0,.8,.4)', fill: 'forwards' }));
+      anims.push(to.animate(
+        [{ transform: 'rotateY(' + (-sgn * 90) + 'deg)' }, { transform: 'rotateY(0deg)' }],
+        { duration: 380, delay: 290, easing: ease, fill: 'both' }));
+    } else {
+      // Phone <-> ATM: the body stretches into the other body (FLIP). Contents
+      // drop out first and arrive last, so the midpoint is one solid slab.
+      const fr = from.getBoundingClientRect(), tr = to.getBoundingClientRect();
+      const sx = tr.width / fr.width, sy = tr.height / fr.height;
+      const dx = (tr.left + tr.width / 2) - (fr.left + fr.width / 2);
+      const dy = (tr.top + tr.height / 2) - (fr.top + fr.height / 2);
+      const D = 780;
+      const stretch = 'cubic-bezier(.35,.55,.2,1)';
+      anims.push(from.animate(
+        [{ transform: 'translate(0,0) scale(1,1)', opacity: 1, offset: 0 },
+         { opacity: 1, offset: 0.5 },
+         { transform: 'translate(' + dx + 'px,' + dy + 'px) scale(' + sx + ',' + sy + ')', opacity: 0, offset: 1 }],
+        { duration: D, easing: stretch, fill: 'forwards' }));
+      anims.push(to.animate(
+        [{ transform: 'translate(' + (-dx) + 'px,' + (-dy) + 'px) scale(' + (1 / sx) + ',' + (1 / sy) + ')', opacity: 0, offset: 0 },
+         { opacity: 0, offset: 0.25 },
+         { opacity: 1, offset: 0.6 },
+         { transform: 'translate(0,0) scale(1,1)', opacity: 1, offset: 1 }],
+        { duration: D, easing: stretch, fill: 'both' }));
+      innerOf(from).forEach(el => anims.push(el.animate(
+        [{ opacity: 1 }, { opacity: 0 }], { duration: D * 0.26, easing: 'ease-out', fill: 'forwards' })));
+      innerOf(to).forEach(el => anims.push(el.animate(
+        [{ opacity: 0, offset: 0 }, { opacity: 0, offset: 0.72 }, { opacity: 1, offset: 1 }],
+        { duration: D, easing: stretch, fill: 'both' })));
+    }
+    running = anims;
+    const done = () => {
+      if (running !== anims) return;         // superseded by a newer morph
+      running = [];
+      anims.forEach(a => { try { a.cancel(); } catch (_) {} });   // drop fills; classes hold the end state
+      from.classList.remove('is-leaving');
+    };
+    Promise.all(anims.map(a => a.finished)).then(done, () => {});
+  }
+
   const next = () => goTo(step + 1, 1);
   const prev = () => goTo(step - 1, -1);
 
@@ -940,6 +1028,11 @@
   goTo(step, 1);
   if (!noAutoplay) requestAnimationFrame(tick);
   else { renderScene(1e9); dots[step].classList.add('no-progress'); }
+  // ?morph=<ms> (with ?pause=1): freeze the transition to the next step at that time, for review.
+  if (params.has('morph')) {
+    next();
+    document.getAnimations().forEach(an => { an.pause(); an.currentTime = +params.get('morph') || 0; });
+  }
 
   /* ── Self-check (only with ?check=1): overflow + clipping report ─────── */
   if (params.has('check')) {
