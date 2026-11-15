@@ -27,6 +27,22 @@
     --black-30:   color-mix(in srgb, var(--black) 30%, transparent);
     --black-50:   color-mix(in srgb, var(--black) 50%, transparent);
 
+    /* Currency illustration palette — used ONLY inside the banknote SVGs.
+       Outside the brand palette by client request (realistic USD notes). */
+    --usd-ink:      #17322A;   /* intaglio black-green */
+    --usd-face:     #6F8076;   /* portrait mid-tone */
+    --usd-paper:    #EFEBDC;
+    --usd-teal:     #CFE2DA;   /* $100 left-side tint */
+    --usd-sage:     #E3E8DA;   /* $100 right-side tint */
+    --usd-blue:     #3B6DC4;   /* $100 security ribbon */
+    --usd-blue-lt:  #BFD6F5;
+    --usd-copper:   #B4713B;   /* color-shifting numeral, inkwell, quill */
+    --usd-seal:     #1D7A4A;   /* treasury seal + serial numbers */
+    --usd-navy:     #2F4F9E;   /* $50 star field */
+    --usd-red:      #C4443F;   /* $50 stripes */
+    --usd-pink:     #EBD3CF;   /* $50 right-side tint */
+    --usd-slate:    #D9DEE9;   /* $50 left-side tint */
+
     /* Motion: critically damped, no overshoot. */
     --ease:       cubic-bezier(.2, .8, .2, 1);
     --t-fast:     140ms;
@@ -353,7 +369,7 @@
     position: relative;
     border-radius: 4cqw;
     background: var(--blackberry);
-    padding: 7cqw 7cqw 27cqw;
+    padding: 7cqw 7cqw 51cqw;
     box-shadow: 0 1cqw 2.5cqw var(--bb-16), 0 10cqw 26cqw -10cqw var(--bb-28);
     color: var(--cream);
     display: flex;
@@ -365,7 +381,7 @@
     color: var(--blackberry);
     border-radius: 2.4cqw;
     padding: 5.5cqw 5.5cqw 6cqw;
-    aspect-ratio: 16 / 11;
+    aspect-ratio: 16 / 10;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -406,7 +422,7 @@
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 2.6cqw;
-    width: 62%;
+    width: 58%;
     margin: 0 auto;
   }
   .key {
@@ -450,7 +466,7 @@
     left: 6%;
     right: 6%;
     top: 2.4cqw;
-    height: 34cqw;
+    height: 56cqw;
     overflow: hidden;
     clip-path: inset(0 -40% -40% -40%);
     pointer-events: none;
@@ -460,54 +476,20 @@
     left: 50%;
     top: 0;
     width: 84%;
-    height: 10cqw;
-    border-radius: 1.2cqw;
-    background: var(--gold);
-    box-shadow: 0 0.6cqw 1.6cqw var(--black-30);
+    height: auto;
+    display: block;
+    border-radius: 0.6cqw;
+    box-shadow: 0 0.6cqw 1.8cqw var(--black-30);
     transform: translate(-50%, -110%) rotate(0deg);
     transition: transform var(--t-slow) var(--ease), opacity var(--t-base) var(--ease);
     opacity: 0;
-  }
-  .bill::before, .bill::after {
-    content: "";
-    position: absolute;
-    border: 0.4cqw solid var(--bb-28);
-  }
-  .bill::before { inset: 1.3cqw 1.6cqw; border-radius: 0.7cqw; }           /* engraved frame */
-  .bill::after  {                                                           /* portrait oval */
-    width: 5.6cqw; height: 7cqw; left: 50%; top: 50%;
-    transform: translate(-50%, -50%);
-    border-radius: 50%;
-    background: var(--bb-10);
-  }
-  .bill b {                                                                 /* corner $ marks */
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    font-style: normal;
-    font-weight: 700;
-    font-size: 4.2cqw;
-    line-height: 1;
-    color: var(--blackberry);
-  }
-  .bill b:first-child { left: 5cqw; }
-  .bill b:nth-child(2) { right: 5cqw; }
-  .bill small {                                                             /* USD mark */
-    position: absolute;
-    left: 50%;
-    bottom: 1.5cqw;
-    transform: translateX(-50%);
-    font-size: 1.9cqw;
-    font-weight: 800;
-    letter-spacing: 0.22em;
-    line-height: 1;
-    color: var(--blackberry);
-    opacity: 0.7;
+    font-family: Georgia, "Times New Roman", serif;
   }
   .atm.is-dispensing .bill { opacity: 1; }
-  .atm.is-dispensing .bill:nth-child(1) { transform: translate(-50%, 12%)  rotate(-2deg); transition-delay: 0ms; }
-  .atm.is-dispensing .bill:nth-child(2) { transform: translate(-49%, 80%)  rotate(1.5deg); transition-delay: 110ms; }
-  .atm.is-dispensing .bill:nth-child(3) { transform: translate(-51%, 148%) rotate(-1deg); transition-delay: 220ms; }
+  .atm.is-dispensing .bill:nth-child(1) { transform: translate(-50%, 12%)   rotate(-1.5deg); transition-delay: 0ms; }
+  .atm.is-dispensing .bill:nth-child(2) { transform: translate(-49.4%, 42%) rotate(1deg);    transition-delay: 120ms; }
+  .atm.is-dispensing .bill:nth-child(3) { transform: translate(-50.6%, 72%) rotate(-0.6deg); transition-delay: 240ms; }
+  .usd-sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
 
   /* ── Progress dots ──────────────────────────────────────────────────── */
   .dots {
@@ -576,9 +558,9 @@
     .bill, .atm.is-dispensing .bill,
     .screen-btn, .key, .dot, .lang-thumb { transition-property: opacity, background, color; }
     .notif { transform: none; }
-    .atm.is-dispensing .bill:nth-child(1) { transform: translate(-50%, 12%)  rotate(-2deg); }
-    .atm.is-dispensing .bill:nth-child(2) { transform: translate(-49%, 80%)  rotate(1.5deg); }
-    .atm.is-dispensing .bill:nth-child(3) { transform: translate(-51%, 148%) rotate(-1deg); }
+    .atm.is-dispensing .bill:nth-child(1) { transform: translate(-50%, 12%)   rotate(-1.5deg); }
+    .atm.is-dispensing .bill:nth-child(2) { transform: translate(-49.4%, 42%) rotate(1deg); }
+    .atm.is-dispensing .bill:nth-child(3) { transform: translate(-50.6%, 72%) rotate(-0.6deg); }
     .caret { opacity: 0 !important; }
   }
   @media (prefers-contrast: more) {
@@ -611,6 +593,81 @@
       <button type="button" data-lang="es" aria-pressed="false" lang="es">ES</button>
     </div>
   </header>
+
+<svg class="usd-sprite" aria-hidden="true" focusable="false">
+  <defs>
+    <linearGradient id="g100" x1="0" x2="1"><stop offset="0" stop-color="var(--usd-teal)"/><stop offset=".5" stop-color="var(--usd-paper)"/><stop offset="1" stop-color="var(--usd-sage)"/></linearGradient>
+    <linearGradient id="g50" x1="0" x2="1"><stop offset="0" stop-color="var(--usd-slate)"/><stop offset=".5" stop-color="var(--usd-paper)"/><stop offset="1" stop-color="var(--usd-pink)"/></linearGradient>
+    <pattern id="engrave" width="2.2" height="2.2" patternUnits="userSpaceOnUse"><path d="M0 2.2 2.2 0" stroke="var(--usd-ink)" stroke-width=".35" opacity=".5"/></pattern>
+    <pattern id="guill" width="12" height="12" patternUnits="userSpaceOnUse"><circle cx="6" cy="6" r="5" fill="none" stroke="var(--usd-ink)" stroke-width=".3" opacity=".22"/><circle cx="0" cy="0" r="5" fill="none" stroke="var(--usd-ink)" stroke-width=".3" opacity=".22"/><circle cx="12" cy="12" r="5" fill="none" stroke="var(--usd-ink)" stroke-width=".3" opacity=".22"/><circle cx="12" cy="0" r="5" fill="none" stroke="var(--usd-ink)" stroke-width=".3" opacity=".22"/><circle cx="0" cy="12" r="5" fill="none" stroke="var(--usd-ink)" stroke-width=".3" opacity=".22"/></pattern>
+    <clipPath id="bustclip"><rect x="10" y="10" width="380" height="140"/></clipPath>
+
+    <!-- Engraved bust, 100 x 130 -->
+    <symbol id="bust" overflow="visible">
+      <path d="M4 130 C6 104 28 94 50 90 C72 94 94 104 96 130 Z" fill="var(--usd-ink)"/>
+      <path d="M40 90 L50 106 L60 90 L50 84 Z" fill="var(--usd-paper)"/>
+      <rect x="40" y="68" width="20" height="24" fill="var(--usd-face)"/>
+      <ellipse cx="50" cy="48" rx="23" ry="30" fill="var(--usd-face)"/>
+      <path d="M27 38 C22 68 18 84 29 92 L39 78 C34 66 32 54 34 38 Z" fill="var(--usd-ink)" opacity=".9"/>
+      <path d="M73 38 C78 68 82 84 71 92 L61 78 C66 66 68 54 66 38 Z" fill="var(--usd-ink)" opacity=".9"/>
+      <path d="M30 34 C36 18 64 18 70 34 C62 28 38 28 30 34 Z" fill="var(--usd-ink)" opacity=".85"/>
+      <path d="M38 50 h8 M54 50 h8" stroke="var(--usd-ink)" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M50 52 v10 l-3 2" stroke="var(--usd-ink)" stroke-width="1" fill="none" stroke-linecap="round"/>
+      <path d="M43 70 q7 4 14 0" stroke="var(--usd-ink)" stroke-width="1.1" fill="none" stroke-linecap="round"/>
+      <rect x="0" y="0" width="100" height="130" fill="url(#engrave)"/>
+    </symbol>
+
+    <!-- Shared frame, header, seals, serials, signatures -->
+    <symbol id="frame" overflow="visible">
+      <rect x="10" y="10" width="380" height="150" fill="url(#guill)"/>
+      <rect x="6" y="6" width="388" height="158" fill="none" stroke="var(--usd-ink)" stroke-width="1.6"/>
+      <rect x="10" y="10" width="380" height="150" fill="none" stroke="var(--usd-ink)" stroke-width=".5" stroke-dasharray="2 1.2"/>
+      <text x="200" y="20" text-anchor="middle" font-size="6" letter-spacing="1.4" fill="var(--usd-ink)">FEDERAL RESERVE NOTE</text>
+      <text x="200" y="31" text-anchor="middle" font-size="9" font-weight="700" letter-spacing="1" fill="var(--usd-ink)">THE UNITED STATES OF AMERICA</text>
+      <text x="42" y="58" font-size="3.6" letter-spacing=".3" fill="var(--usd-ink)">THIS NOTE IS LEGAL TENDER FOR ALL DEBTS, PUBLIC AND PRIVATE</text>
+      <g transform="translate(60 84)"><circle r="11" fill="var(--usd-ink)"/><circle r="8.4" fill="none" stroke="var(--usd-paper)" stroke-width=".6"/><text y="3.2" font-size="9" font-weight="700" text-anchor="middle" fill="var(--usd-paper)">L</text></g>
+      <g transform="translate(318 66)"><circle r="12" fill="none" stroke="var(--usd-seal)" stroke-width="1.8"/><circle r="9" fill="none" stroke="var(--usd-seal)" stroke-width=".6"/><path d="M-4.5 3.5 L0 -6 L4.5 3.5 Z" fill="var(--usd-seal)"/><rect x="-5.5" y="4.5" width="11" height="2" fill="var(--usd-seal)"/></g>
+      <path d="M34 150 c6 -7 10 3 16 -4 s9 3 15 -3" stroke="var(--usd-ink)" stroke-width=".9" fill="none"/>
+      <path d="M262 152 c6 -7 10 3 16 -4 s9 3 15 -3" stroke="var(--usd-ink)" stroke-width=".9" fill="none"/>
+      <text x="300" y="46" font-size="7.5" font-family="Courier New, monospace" fill="var(--usd-seal)">LB 48291736 F</text>
+      <text x="40" y="128" font-size="7.5" font-family="Courier New, monospace" fill="var(--usd-seal)">LB 48291736 F</text>
+    </symbol>
+
+    <!-- $100 -->
+    <symbol id="usd100" overflow="visible">
+      <rect width="400" height="170" rx="4" fill="url(#g100)"/>
+      <rect x="214" y="10" width="15" height="150" fill="var(--usd-blue)" opacity=".92"/>
+      <path d="M217 12 v146 M226 12 v146" stroke="var(--usd-blue-lt)" stroke-width=".6"/>
+      <text transform="translate(224.5 40) rotate(90)" font-size="5.2" letter-spacing="1" fill="var(--usd-blue-lt)">100 ✦ 100 ✦ 100 ✦ 100 ✦ 100</text>
+      <use href="#frame"/>
+      <g clip-path="url(#bustclip)"><use href="#bust" transform="translate(120 38) scale(.9)"/></g>
+      <path d="M238 44 C246 70 262 92 254 116" stroke="var(--usd-copper)" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+      <g transform="translate(252 112)"><rect x="-10" y="-6" width="20" height="4" rx="1" fill="var(--usd-copper)"/><path d="M-8 -2 h16 l-2 14 h-12 z" fill="var(--usd-copper)"/><path d="M-3 5 l3 -6 l3 6 z" fill="var(--usd-seal)"/></g>
+      <text x="18" y="40" font-size="20" font-weight="700" fill="var(--usd-ink)">100</text>
+      <text x="382" y="40" text-anchor="end" font-size="20" font-weight="700" fill="var(--usd-ink)">100</text>
+      <text x="18" y="156" font-size="20" font-weight="700" fill="var(--usd-ink)">100</text>
+      <text x="384" y="112" text-anchor="end" font-size="15" font-weight="700" fill="var(--usd-copper)">100</text>
+      <text x="384" y="157" text-anchor="end" font-size="34" font-weight="700" fill="var(--usd-ink)">100</text>
+      <text x="200" y="156" text-anchor="middle" font-size="7.5" font-weight="700" letter-spacing="1.6" fill="var(--usd-ink)">ONE HUNDRED DOLLARS</text>
+    </symbol>
+
+    <!-- $50 -->
+    <symbol id="usd50" overflow="visible">
+      <rect width="400" height="170" rx="4" fill="url(#g50)"/>
+      <rect x="246" y="40" width="72" height="40" fill="var(--usd-navy)" opacity=".5"/>
+      <g fill="var(--usd-paper)" opacity=".9"><circle cx="256" cy="50" r="1.4"/><circle cx="272" cy="50" r="1.4"/><circle cx="288" cy="50" r="1.4"/><circle cx="304" cy="50" r="1.4"/><circle cx="264" cy="60" r="1.4"/><circle cx="280" cy="60" r="1.4"/><circle cx="296" cy="60" r="1.4"/><circle cx="256" cy="70" r="1.4"/><circle cx="272" cy="70" r="1.4"/><circle cx="288" cy="70" r="1.4"/><circle cx="304" cy="70" r="1.4"/></g>
+      <g stroke="var(--usd-red)" stroke-width="4.5" opacity=".42"><path d="M246 90 H386 M246 101 H386 M246 112 H386 M246 123 H386"/></g>
+      <use href="#frame"/>
+      <g clip-path="url(#bustclip)"><use href="#bust" transform="translate(120 38) scale(.9)"/></g>
+      <text x="18" y="40" font-size="20" font-weight="700" fill="var(--usd-ink)">50</text>
+      <text x="382" y="40" text-anchor="end" font-size="20" font-weight="700" fill="var(--usd-ink)">50</text>
+      <text x="18" y="156" font-size="20" font-weight="700" fill="var(--usd-ink)">50</text>
+      <text x="384" y="112" text-anchor="end" font-size="15" font-weight="700" fill="var(--usd-copper)">50</text>
+      <text x="384" y="157" text-anchor="end" font-size="36" font-weight="700" fill="var(--usd-ink)">50</text>
+      <text x="200" y="156" text-anchor="middle" font-size="7.5" font-weight="700" letter-spacing="1.6" fill="var(--usd-ink)">FIFTY DOLLARS</text>
+    </symbol>
+  </defs>
+</svg>
 
   <div class="stage" id="stage" aria-hidden="true">
     <!-- Sender -->
@@ -673,7 +730,11 @@
         </div>
         <div class="cash-unit">
           <div class="cash-slot"></div>
-          <div class="bills" data-clip-ok><i class="bill"><b>$</b><b>$</b><small>USD</small></i><i class="bill"><b>$</b><b>$</b><small>USD</small></i><i class="bill"><b>$</b><b>$</b><small>USD</small></i></div>
+          <div class="bills" data-clip-ok>
+            <svg class="bill" viewBox="0 0 400 170" aria-hidden="true"><use href="#usd50"/></svg>
+            <svg class="bill" viewBox="0 0 400 170" aria-hidden="true"><use href="#usd50"/></svg>
+            <svg class="bill" viewBox="0 0 400 170" aria-hidden="true"><use href="#usd100"/></svg>
+          </div>
         </div>
       </div>
     </div>
